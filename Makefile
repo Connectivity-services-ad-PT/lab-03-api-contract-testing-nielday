@@ -1,4 +1,4 @@
-.PHONY: install lint mock mock-iot mock-vision mock-all test-mock test-local test-html test-ci clean
+.PHONY: install lint mock mock-iot mock-core mock-analytics mock-all test-mock test-local test-html test-ci clean
 
 install:
 	npm install
@@ -11,8 +11,11 @@ mock: mock-iot
 mock-iot:
 	npm run mock:iot
 
-mock-vision:
-	npm run mock:vision
+mock-core:
+	npm run mock:core
+
+mock-analytics:
+	npm run mock:analytics
 
 mock-all:
 	npm run mock:all

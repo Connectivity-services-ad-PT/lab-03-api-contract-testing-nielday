@@ -1,0 +1,7 @@
+{
+  "deviceId": "SENSOR-S-002",
+  "metricType": "SMOKE",
+  "smokeLevel": 450,
+  "isAlarm": true,
+  "batteryLevel": null
+}

@@ -1,0 +1,7 @@
+{
+  "deviceId": "SENSOR-T-001",
+  "metricType": "TEMPERATURE",
+  "value": 36.5,
+  "unit": "celsius",
+  "batteryLevel": 85
+}
