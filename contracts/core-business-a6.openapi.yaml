@@ -1,0 +1,947 @@
+﻿openapi: 3.1.0
+info:
+  title: Smart Campus â€” Core Business API (Cap 05)
+  version: 1.0.0
+  description: |
+    Hop dong API cap 05: IoT Ingestion (A1) voi Core Business (A6).
+    Co che chinh la Queue async (Kafka). File nay dinh nghia REST endpoint
+    cua Core Business de quan ly Alert va nhan Event tu IoT Ingestion.
+    Dependency Queue async ghi nhan trong docs/event-contract-template.md.
+  contact:
+    name: Nhom A6 â€” Core Business
+    email: fit4110@example.edu.vn
+servers:
+  - url: http://localhost:4010
+    description: Prism mock server
+  - url: https://api.campus.local/core
+    description: Class network placeholder
+tags:
+  - name: health
+    description: Kiem tra trang thai service Core Business
+  - name: alerts
+    description: Quan ly canh bao sinh ra tu su kien IoT
+  - name: events
+    description: Nhan su kien tu IoT Ingestion qua REST fallback
+  - name: devices
+    description: Tra cuu thong tin thiet bi IoT da dang ky
+security:
+  - bearerAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Kiem tra trang thai service
+      description: Endpoint kiem tra service con hoat dong, khong yeu cau xac thuc.
+      tags: [health]
+      security: []
+      responses:
+        '200':
+          description: Service dang hoat dong
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              examples:
+                ok:
+                  value:
+                    status: ok
+                    service: service-core-business
+                    time: '2026-05-24T08:00:00Z'
+
+  /alerts:
+    post:
+      operationId: createAlert
+      summary: Tao canh bao moi tu su kien IoT
+      description: |
+        Core Business tao Alert khi nhan duoc su kien threshold.exceeded tu IoT Ingestion.
+        Endpoint nay cung duoc dung khi tao Alert thu cong tu operator.
+      tags: [alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAlertRequest'
+            examples:
+              smokeAlert:
+                summary: Canh bao khoi vuot nguong
+                value:
+                  sourceService: service-iot-ingestion
+                  alertType: SENSOR_THRESHOLD_EXCEEDED
+                  severity: HIGH
+                  message: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong 450.5 ppm
+                  relatedEventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+              tempAlert:
+                summary: Canh bao nhiet do cao
+                value:
+                  sourceService: service-iot-ingestion
+                  alertType: SENSOR_THRESHOLD_EXCEEDED
+                  severity: MEDIUM
+                  message: Nhiet do phong B2-01 dat 38.5 do C vuot nguong 35 do C
+                  relatedEventId: f47ac10b-58cc-4372-a567-0e02b2c3d479
+      responses:
+        '201':
+          description: Canh bao da duoc tao thanh cong
+          headers:
+            Location:
+              description: URI cua alert vua tao
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+              examples:
+                created:
+                  value:
+                    id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    sourceService: service-iot-ingestion
+                    alertType: SENSOR_THRESHOLD_EXCEEDED
+                    severity: HIGH
+                    message: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong 450.5 ppm
+                    relatedEventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+                    status: OPEN
+                    createdAt: '2026-05-24T08:35:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      operationId: listAlerts
+      summary: Lay danh sach canh bao voi cursor-based pagination
+      description: Tra ve danh sach Alert theo thu tu thoi gian giam dan.
+      tags: [alerts]
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Limit'
+        - name: status
+          in: query
+          required: false
+          description: Loc theo trang thai Alert.
+          schema:
+            type: string
+            enum: [OPEN, ACKNOWLEDGED, RESOLVED]
+        - name: severity
+          in: query
+          required: false
+          description: Loc theo muc do nghiem trong.
+          schema:
+            type: string
+            enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      responses:
+        '200':
+          description: Danh sach canh bao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlertPage'
+              examples:
+                firstPage:
+                  value:
+                    items:
+                      - id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                        sourceService: service-iot-ingestion
+                        alertType: SENSOR_THRESHOLD_EXCEEDED
+                        severity: HIGH
+                        message: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong
+                        relatedEventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+                        status: OPEN
+                        createdAt: '2026-05-24T08:35:00Z'
+                    nextCursor: ''
+                    hasMore: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts/recent:
+    get:
+      operationId: getRecentAlerts
+      summary: Lay cac canh bao gan day toi da 100
+      description: Shortcut endpoint lay nhanh cac Alert moi nhat, dung cho dashboard.
+      tags: [alerts]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: So canh bao toi da can lay.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Danh sach canh bao gan day
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    minItems: 0
+                    maxItems: 100
+                    items:
+                      $ref: '#/components/schemas/Alert'
+              examples:
+                recentAlerts:
+                  value:
+                    items:
+                      - id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                        sourceService: service-iot-ingestion
+                        alertType: SENSOR_THRESHOLD_EXCEEDED
+                        severity: HIGH
+                        message: Cam bien khoi vuot nguong
+                        relatedEventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+                        status: OPEN
+                        createdAt: '2026-05-24T08:35:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts/{alertId}:
+    get:
+      operationId: getAlertById
+      summary: Lay chi tiet mot canh bao theo ID
+      description: Tra ve day du thong tin cua mot Alert theo UUID.
+      tags: [alerts]
+      parameters:
+        - $ref: '#/components/parameters/AlertId'
+      responses:
+        '200':
+          description: Chi tiet canh bao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+              examples:
+                found:
+                  value:
+                    id: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+                    sourceService: service-iot-ingestion
+                    alertType: SENSOR_THRESHOLD_EXCEEDED
+                    severity: HIGH
+                    message: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong 450.5 ppm
+                    relatedEventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+                    status: ACKNOWLEDGED
+                    createdAt: '2026-05-24T08:35:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      operationId: updateAlertStatus
+      summary: Cap nhat trang thai canh bao
+      description: Operator cap nhat trang thai Alert sang ACKNOWLEDGED hoac RESOLVED.
+      tags: [alerts]
+      parameters:
+        - $ref: '#/components/parameters/AlertId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertStatusRequest'
+            examples:
+              acknowledge:
+                value:
+                  status: ACKNOWLEDGED
+                  note: Bao ve da kiem tra, dang xu ly
+              resolve:
+                value:
+                  status: RESOLVED
+                  note: Da tat coi, tinh huong duoc kiem soat
+      responses:
+        '200':
+          description: Trang thai da duoc cap nhat
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /events:
+    post:
+      operationId: ingestIoTEvent
+      summary: Nhan su kien IoT qua REST fallback
+      description: |
+        Endpoint fallback de IoT Ingestion gui event truc tiep qua REST
+        khi Kafka queue khong kha dung. Ho tro polymorphism voi oneOf + discriminator.
+        Event co the la SensorReadingEvent hoac ThresholdExceededEvent.
+      tags: [events]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IoTEvent'
+            examples:
+              sensorReading:
+                summary: Du lieu tho cam bien nhiet do
+                value:
+                  eventType: SENSOR_READING
+                  eventId: f47ac10b-58cc-4372-a567-0e02b2c3d479
+                  occurredAt: '2026-05-24T08:30:00Z'
+                  source: service-iot-ingestion
+                  deviceId: SENSOR-TEMP-B2-01
+                  sensorType: temperature
+                  value: 38.5
+                  unit: celsius
+              thresholdExceeded:
+                summary: Canh bao khoi vuot nguong
+                value:
+                  eventType: THRESHOLD_EXCEEDED
+                  eventId: a1b2c3d4-1234-5678-abcd-ef0123456789
+                  occurredAt: '2026-05-24T08:35:00Z'
+                  source: service-iot-ingestion
+                  deviceId: SENSOR-SMOKE-B1-03
+                  sensorType: smoke_detector
+                  value: 450.5
+                  threshold: 300.0
+                  unit: ppm
+                  severity: HIGH
+      responses:
+        '201':
+          description: Event da duoc ghi nhan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventAccepted'
+              examples:
+                accepted:
+                  value:
+                    eventId: f47ac10b-58cc-4372-a567-0e02b2c3d479
+                    acceptedAt: '2026-05-24T08:30:01Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{deviceId}:
+    get:
+      operationId: getDeviceInfo
+      summary: Tra cuu thong tin thiet bi IoT da dang ky
+      description: |
+        Core Business tra cuu thong tin thiet bi bao gom locationId tu Device Registry.
+        Dung de anh xa deviceId sang locationId khi xu ly Alert.
+      tags: [devices]
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          description: Ma thiet bi IoT.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 80
+            example: SENSOR-SMOKE-B1-03
+      responses:
+        '200':
+          description: Thong tin thiet bi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceInfo'
+              examples:
+                found:
+                  value:
+                    deviceId: SENSOR-SMOKE-B1-03
+                    sensorType: smoke_detector
+                    locationId: B1-FLOOR1-ROOM03
+                    building: B1
+                    floor: 1
+                    room: '03'
+                    status: ACTIVE
+                    registeredAt: '2026-01-15T09:00:00Z'
+                    lastSeenAt: '2026-05-24T08:35:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+webhooks:
+  alertCreated:
+    post:
+      operationId: onAlertCreated
+      summary: Webhook khi Core Business tao Alert moi
+      description: Core Business phat su kien webhook khi mot Alert moi duoc tao tu IoT event.
+      tags: [alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Alert'
+      responses:
+        '200':
+          description: Subscriber da nhan webhook thanh cong
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AlertId:
+      name: alertId
+      in: path
+      required: true
+      description: UUID cua canh bao.
+      schema:
+        type: string
+        format: uuid
+        example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Cursor dung de lay trang tiep theo.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: So item toi da moi trang.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+
+    HealthStatus:
+      type: object
+      additionalProperties: false
+      required: [status, service, time]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          description: Trang thai service.
+          example: ok
+        service:
+          type: string
+          minLength: 2
+          maxLength: 80
+          description: Ten service.
+          example: service-core-business
+        time:
+          type: string
+          format: date-time
+          description: Thoi diem kiem tra ISO 8601.
+          example: '2026-05-24T08:00:00Z'
+
+    AlertSeverity:
+      type: string
+      enum: [LOW, MEDIUM, HIGH, CRITICAL]
+      description: |
+        Muc do nghiem trong cua canh bao.
+        Mapping phan tram vuot nguong: duoi 20% la LOW, 20-50% la MEDIUM, 50-100% la HIGH, tren 100% la CRITICAL.
+      example: HIGH
+
+    AlertType:
+      type: string
+      enum: [SENSOR_THRESHOLD_EXCEEDED, UNAUTHORIZED_ACCESS, UNKNOWN_DEVICE, SYSTEM_ERROR]
+      description: Loai canh bao.
+      example: SENSOR_THRESHOLD_EXCEEDED
+
+    NullableString:
+      oneOf:
+        - type: string
+        - type: 'null'
+      description: Chuoi co the null.
+
+    NullableUuid:
+      oneOf:
+        - type: string
+          format: uuid
+        - type: 'null'
+      description: UUID co the null.
+
+    NullableDatetime:
+      oneOf:
+        - type: string
+          format: date-time
+        - type: 'null'
+      description: Datetime co the null.
+
+    CreateAlertRequest:
+      type: object
+      additionalProperties: false
+      required: [sourceService, alertType, severity, message]
+      properties:
+        sourceService:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: '^[a-z0-9-]+$'
+          description: Service tao alert.
+          example: service-iot-ingestion
+        alertType:
+          $ref: '#/components/schemas/AlertType'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        message:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: Noi dung mo ta canh bao.
+          example: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong 450.5 ppm
+        relatedEventId:
+          $ref: '#/components/schemas/NullableUuid'
+
+    Alert:
+      type: object
+      required: [id, sourceService, alertType, severity, message, status, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID cua Alert.
+          example: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
+        sourceService:
+          type: string
+          minLength: 2
+          maxLength: 80
+          pattern: '^[a-z0-9-]+$'
+          description: Service tao alert.
+          example: service-iot-ingestion
+        alertType:
+          $ref: '#/components/schemas/AlertType'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+        message:
+          type: string
+          minLength: 5
+          maxLength: 500
+          description: Noi dung mo ta canh bao.
+          example: Cam bien khoi SENSOR-SMOKE-B1-03 vuot nguong 450.5 ppm
+        relatedEventId:
+          $ref: '#/components/schemas/NullableUuid'
+        status:
+          type: string
+          enum: [OPEN, ACKNOWLEDGED, RESOLVED]
+          description: Trang thai xu ly Alert.
+          example: OPEN
+        createdAt:
+          type: string
+          format: date-time
+          description: Thoi diem tao Alert.
+          example: '2026-05-24T08:35:00Z'
+        resolvedAt:
+          $ref: '#/components/schemas/NullableDatetime'
+
+    UpdateAlertStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ACKNOWLEDGED, RESOLVED]
+          description: Trang thai moi cua Alert.
+          example: ACKNOWLEDGED
+        note:
+          type: [string, 'null']
+          maxLength: 500
+          description: Ghi chu cua operator khi cap nhat trang thai. Null neu khong co ghi chu.
+          example: Bao ve da kiem tra xong
+
+    AlertPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor, hasMore]
+      properties:
+        items:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/Alert'
+        nextCursor:
+          $ref: '#/components/schemas/NullableString'
+        hasMore:
+          type: boolean
+          description: Con du lieu o trang sau hay khong.
+          example: false
+
+    SensorType:
+      type: string
+      enum: [temperature, humidity, smoke_detector, motion]
+      description: Loai cam bien IoT.
+      example: smoke_detector
+
+    IoTEvent:
+      oneOf:
+        - $ref: '#/components/schemas/SensorReadingEvent'
+        - $ref: '#/components/schemas/ThresholdExceededEvent'
+      discriminator:
+        propertyName: eventType
+        mapping:
+          SENSOR_READING: '#/components/schemas/SensorReadingEvent'
+          THRESHOLD_EXCEEDED: '#/components/schemas/ThresholdExceededEvent'
+
+    SensorReadingEvent:
+      type: object
+      additionalProperties: false
+      required: [eventType, eventId, occurredAt, source, deviceId, sensorType, value, unit]
+      properties:
+        eventType:
+          type: string
+          const: SENSOR_READING
+          description: Loai event phan biet voi discriminator.
+          example: SENSOR_READING
+        eventId:
+          type: string
+          format: uuid
+          description: UUID v4 duy nhat cua event, dung lam idempotency key.
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+        occurredAt:
+          type: string
+          format: date-time
+          description: Thoi diem su kien xay ra tai thiet bi, khong phai thoi diem gui.
+          example: '2026-05-24T08:30:00Z'
+        correlationId:
+          $ref: '#/components/schemas/NullableUuid'
+        source:
+          type: string
+          minLength: 2
+          maxLength: 80
+          description: Service tao ra event.
+          example: service-iot-ingestion
+        deviceId:
+          type: string
+          minLength: 3
+          maxLength: 80
+          description: Ma thiet bi cam bien.
+          example: SENSOR-TEMP-B2-01
+        sensorType:
+          $ref: '#/components/schemas/SensorType'
+        value:
+          type: number
+          minimum: -100
+          maximum: 10000
+          description: Gia tri do duoc da chuan hoa ve don vi SI.
+          example: 38.5
+        unit:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Don vi do celsius, percent, ppm.
+          example: celsius
+
+    ThresholdExceededEvent:
+      type: object
+      additionalProperties: false
+      required: [eventType, eventId, occurredAt, source, deviceId, sensorType, value, threshold, severity]
+      properties:
+        eventType:
+          type: string
+          const: THRESHOLD_EXCEEDED
+          description: Loai event phan biet voi discriminator.
+          example: THRESHOLD_EXCEEDED
+        eventId:
+          type: string
+          format: uuid
+          description: UUID v4 duy nhat cua event, dung lam idempotency key.
+          example: a1b2c3d4-1234-5678-abcd-ef0123456789
+        occurredAt:
+          type: string
+          format: date-time
+          description: Thoi diem su kien xay ra tai thiet bi.
+          example: '2026-05-24T08:35:00Z'
+        correlationId:
+          $ref: '#/components/schemas/NullableUuid'
+        source:
+          type: string
+          minLength: 2
+          maxLength: 80
+          description: Service tao ra event.
+          example: service-iot-ingestion
+        deviceId:
+          type: string
+          minLength: 3
+          maxLength: 80
+          description: Ma thiet bi cam bien.
+          example: SENSOR-SMOKE-B1-03
+        sensorType:
+          $ref: '#/components/schemas/SensorType'
+        value:
+          type: number
+          minimum: -100
+          maximum: 10000
+          description: Gia tri do duoc tai thoi diem vuot nguong.
+          example: 450.5
+        threshold:
+          type: number
+          minimum: 0
+          maximum: 10000
+          description: Nguong an toan da cau hinh.
+          example: 300.0
+        unit:
+          $ref: '#/components/schemas/NullableString'
+        severity:
+          $ref: '#/components/schemas/AlertSeverity'
+
+    EventAccepted:
+      type: object
+      additionalProperties: false
+      required: [eventId, acceptedAt]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+          description: UUID cua event da duoc ghi nhan.
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+        acceptedAt:
+          type: string
+          format: date-time
+          description: Thoi diem he thong Core Business ghi nhan event.
+          example: '2026-05-24T08:30:01Z'
+
+    DeviceInfo:
+      type: object
+      additionalProperties: false
+      required: [deviceId, sensorType, locationId, building, floor, room, status, registeredAt, lastSeenAt]
+      properties:
+        deviceId:
+          type: string
+          minLength: 3
+          maxLength: 80
+          description: Ma thiet bi IoT.
+          example: SENSOR-SMOKE-B1-03
+        sensorType:
+          $ref: '#/components/schemas/SensorType'
+        locationId:
+          type: string
+          minLength: 3
+          maxLength: 80
+          description: Ma vi tri lap dat thiet bi toa nha tang phong.
+          example: B1-FLOOR1-ROOM03
+        building:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Ma toa nha.
+          example: B1
+        floor:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: So tang.
+          example: 1
+        room:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Ma phong.
+          example: '03'
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, MAINTENANCE]
+          description: Trang thai thiet bi.
+          example: ACTIVE
+        registeredAt:
+          type: string
+          format: date-time
+          description: Thoi diem dang ky thiet bi vao he thong.
+          example: '2026-01-15T09:00:00Z'
+        lastSeenAt:
+          $ref: '#/components/schemas/NullableDatetime'
+
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI dinh danh loai loi RFC 9457.
+          example: https://campus.local/errors/validation
+        title:
+          type: string
+          minLength: 3
+          maxLength: 120
+          description: Tieu de loi ngan gon.
+          example: Du lieu khong hop le
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+          description: HTTP status code.
+          example: 400
+        detail:
+          $ref: '#/components/schemas/NullableString'
+        instance:
+          $ref: '#/components/schemas/NullableString'
+        errors:
+          type: array
+          minItems: 0
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [field, code, message]
+            properties:
+              field:
+                type: string
+                minLength: 1
+                maxLength: 80
+                example: severity
+              code:
+                type: string
+                minLength: 2
+                maxLength: 80
+                example: ENUM_MISMATCH
+              message:
+                type: string
+                minLength: 3
+                maxLength: 200
+                example: severity phai la mot trong LOW MEDIUM HIGH CRITICAL
+
+  responses:
+    BadRequest:
+      description: Du lieu sai dinh dang hoac vi pham schema
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/validation
+            title: Du lieu khong hop le
+            status: 400
+            detail: Payload khong dung JSON Schema
+            instance: /events
+            errors:
+              - field: eventType
+                code: ENUM_MISMATCH
+                message: eventType phai la SENSOR_READING hoac THRESHOLD_EXCEEDED
+
+    Unauthorized:
+      description: Thieu hoac sai Bearer token
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/unauthorized
+            title: Chua xac thuc
+            status: 401
+            detail: Thieu hoac het han Bearer token
+            instance: /alerts
+            errors: []
+
+    Forbidden:
+      description: Token hop le nhung khong co quyen thuc hien thao tac
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/forbidden
+            title: Khong co quyen truy cap
+            status: 403
+            detail: Role cua token khong du quyen xem danh sach Alert
+            instance: /alerts/recent
+            errors: []
+
+    NotFound:
+      description: Resource khong ton tai
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/not-found
+            title: Khong tim thay
+            status: 404
+            detail: Alert voi ID nay khong ton tai
+            instance: /alerts/0196fb3d-0000-0000-0000-000000000000
+            errors: []
+
+    Conflict:
+      description: Event da duoc xu ly truoc do hoac trang thai khong hop le
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/conflict
+            title: Xung dot nghiep vu
+            status: 409
+            detail: Event voi eventId nay da duoc xu ly truoc do
+            instance: /events
+            errors: []
+
+    UnprocessableEntity:
+      description: Payload dung JSON Schema nhung vi pham rule nghiep vu
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/unprocessable
+            title: Vi pham quy tac nghiep vu
+            status: 422
+            detail: occurredAt cu hon 5 phut, event bi tu choi
+            instance: /events
+            errors:
+              - field: occurredAt
+                code: STALE_EVENT
+                message: Event qua cu, khong duoc xu ly de tranh canh bao sai
+
+    InternalServerError:
+      description: Loi khong mong muon phia server
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://campus.local/errors/internal
+            title: Loi he thong
+            status: 500
+            detail: Loi ket noi database noi bo
+            instance: /alerts
+            errors: []

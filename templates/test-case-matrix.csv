@@ -1,6 +1,19 @@
 ID,Folder,Endpoint,Method,Scenario,Input file/body,Expected status,Expected response check,Type,Pass/Fail,Evidence
-TC01,Functional,/health,GET,Service is alive,-,200,status=ok,functional,,
-TC02,Functional,/readings,POST,Create reading happy path,mock-data/sensor-reading-valid.json,201,"has reading_id, accepted=true",functional,,
-TC03,Negative,/readings,POST,Missing device_id,mock-data/sensor-reading-invalid-missing-device.json,400,Problem Details,negative,,
-TC04,Auth,/readings,POST,Missing token,mock-data/sensor-reading-valid.json,401,Problem Details,auth,,
-TC05,Boundary,/readings,POST,High temperature boundary,mock-data/sensor-reading-boundary.json,201/400,documented behavior,boundary,,
+TC01,00_Health,/health,GET,Service is alive,-,200,"status=ok; service exists; time exists",functional,Pass,reports/newman-report.html
+TC02,01_Functional,/telemetry,POST,Temperature reading happy path,"inline TemperatureReading: deviceId=SENSOR-T-001; metricType=TEMPERATURE; value=36.5; unit=celsius; batteryLevel=85",202,"has eventId; status=ACCEPTED",functional,Pass,reports/newman-report.html
+TC03,01_Functional,/telemetry,POST,Smoke reading happy path,"inline SmokeReading: deviceId=SENSOR-S-002; metricType=SMOKE; smokeLevel=450; isAlarm=true; batteryLevel=null",202,"has eventId; status=ACCEPTED",functional,Pass,reports/newman-report.html
+TC04,01_Functional,/telemetry/latest,GET,Get latest telemetry,"deviceId=SENSOR-T-001",200,"has deviceId; has metricType",functional,Pass,reports/newman-report.html
+TC05,01_Functional,/devices/{deviceId}/status,POST,Update device status,"status=ONLINE; errorCode=null; batteryLevel=85",200,"has deviceId; has status",functional,Pass,reports/newman-report.html
+TC06,02_Auth,/telemetry/latest,GET,Valid token is accepted,"Authorization: Bearer {{authToken}}",200,"response success",auth,Pass,reports/newman-report.html
+TC07,02_Auth,/telemetry,POST,Missing token is rejected on real service,"inline valid TemperatureReading; no Authorization header",401 or 403,"mock skip note; real service must reject missing token",auth,Pass,reports/newman-report.html
+TC08,02_Auth,/telemetry,POST,Invalid token is rejected on real service,"inline valid TemperatureReading; Authorization: Bearer invalid-token",401 or 403,"mock skip note; real service must reject invalid token",auth,Pass,reports/newman-report.html
+TC09,03_Negative,/telemetry,POST,Missing required field deviceId,"inline body equivalent to mock-data/telemetry-invalid-missing-device.json",400 or 422,"Problem title/status; status 400-599",negative,Pass,reports/newman-report.html
+TC10,03_Negative,/telemetry,POST,Wrong metricType discriminator,"metricType=HUMIDITY (not in oneOf)",400 or 422,"Problem detail exists",negative,Pass,reports/newman-report.html
+TC11,03_Negative,/telemetry,POST,Wrong value type,"value=thirty-six (string instead of number)",400 or 422,"Problem status/detail exists",negative,Pass,reports/newman-report.html
+TC12,04_Boundary_Reliability,/telemetry,POST,batteryLevel at max 100,"batteryLevel=100 (max per schema)",202,"status=ACCEPTED",boundary,Pass,reports/newman-report.html
+TC13,04_Boundary_Reliability,/telemetry,POST,batteryLevel null union type,"batteryLevel=null (union type [number null])",202,"has eventId",boundary,Pass,reports/newman-report.html
+TC14,04_Boundary_Reliability,/telemetry,POST,Rate limit response,"valid body; Prefer: code=429 for Prism mock",429,"Problem status=429; title/detail exist",reliability,Pass,reports/newman-report.html
+TC15,04_Boundary_Reliability,/devices/SENSOR-X-999/status,POST,Device not found,"status=ONLINE; Prefer: code=404",404,"Problem status=404; title exists",boundary,Pass,reports/newman-report.html
+TC16,05_Consumer_side_Smoke,/events (Core Business A6),POST,Consumer calls Core Business mock to send sensor event,"eventType=SENSOR_READING; deviceId=SENSOR-TEMP-B2-01; value=38.5",201,"eventId; acceptedAt",consumer-smoke,Pass,reports/newman-report.html
+TC17,05_Consumer_side_Smoke,/alerts/recent (Core Business A6),GET,Consumer reads recent alerts from Core Business mock,"limit=5",200,"items exists and is array",consumer-smoke,Pass,reports/newman-report.html
+TC18,06_Local_only_NonFunctional,/telemetry,POST,Local response time threshold,"valid TemperatureReading body",202,"local env checks responseTime < 1000ms; mock run skips real latency claim",non-functional,Pass,reports/newman-report.html

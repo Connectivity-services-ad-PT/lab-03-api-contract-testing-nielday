@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="FIT4110 Lab03 - IoT Ingestion A1 Contract Tests" tests="18" time="0.094">
+  <testsuite name="00_Health / GET /health - service is alive" id="e87f9224-6dc5-458b-8e8f-dd6b2cba0507" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.023">
+    <testcase name="Status code is 200" time="0.023" classname="00HealthGetHealthServiceIsAlive"/>
+    <testcase name="Response has service status" time="0.023" classname="00HealthGetHealthServiceIsAlive"/>
+  </testsuite>
+  <testsuite name="01_Functional / POST /telemetry - temperature reading happy path" id="ef7de147-c465-430d-8ddb-d32172679823" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.005">
+    <testcase name="Status code is 202 Accepted" time="0.005" classname="01FunctionalPostTelemetryTemperatureReadingHappyPath"/>
+    <testcase name="Response has eventId and ACCEPTED status" time="0.005" classname="01FunctionalPostTelemetryTemperatureReadingHappyPath"/>
+  </testsuite>
+  <testsuite name="01_Functional / POST /telemetry - smoke reading happy path" id="f001ec99-a129-4b88-b011-6c667cf567b4" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Status code is 202 Accepted" time="0.004" classname="01FunctionalPostTelemetrySmokeReadingHappyPath"/>
+    <testcase name="Smoke reading accepted with eventId" time="0.004" classname="01FunctionalPostTelemetrySmokeReadingHappyPath"/>
+  </testsuite>
+  <testsuite name="01_Functional / GET /telemetry/latest - get latest reading" id="9a8b4b3e-8bb7-4028-b3d5-12ec9314721b" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="Status code is 200" time="0.003" classname="01FunctionalGetTelemetryLatestGetLatestReading"/>
+    <testcase name="Response has telemetry fields" time="0.003" classname="01FunctionalGetTelemetryLatestGetLatestReading"/>
+  </testsuite>
+  <testsuite name="01_Functional / POST /devices/{deviceId}/status - update device status" id="3ff3b9cf-71e4-4b01-813e-7276f8170f1c" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.006">
+    <testcase name="Status code is 200" time="0.006" classname="01FunctionalPostDevicesDeviceIdStatusUpdateDeviceStatus"/>
+    <testcase name="Response confirms device update" time="0.006" classname="01FunctionalPostDevicesDeviceIdStatusUpdateDeviceStatus"/>
+  </testsuite>
+  <testsuite name="02_Auth / GET /telemetry/latest - valid token is accepted" id="fd381a4d-0f10-4543-905e-268778972b38" timestamp="2026-06-01T11:27:32.980Z" tests="1" failures="0" errors="0" time="0.005">
+    <testcase name="Valid token request returns success" time="0.005" classname="02AuthGetTelemetryLatestValidTokenIsAccepted"/>
+  </testsuite>
+  <testsuite name="02_Auth / POST /telemetry - missing token is rejected on real service" id="064e339c-c6d0-4183-a1e4-b5cc10083233" timestamp="2026-06-01T11:27:32.980Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="Skipped on mock: Prism does not enforce real auth without a service implementation" time="0.004" classname="02AuthPostTelemetryMissingTokenIsRejectedOnRealService"/>
+  </testsuite>
+  <testsuite name="02_Auth / POST /telemetry - invalid token is rejected on real service" id="bb0442ff-102c-4c10-a3ff-04e81812e773" timestamp="2026-06-01T11:27:32.980Z" tests="1" failures="0" errors="0" time="0.003">
+    <testcase name="Skipped on mock: invalid token requires real auth middleware" time="0.003" classname="02AuthPostTelemetryInvalidTokenIsRejectedOnRealService"/>
+  </testsuite>
+  <testsuite name="03_Negative / POST /telemetry - missing required deviceId returns validation error" id="f69fa498-3884-4768-9569-ebd918555d9b" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Missing deviceId returns client error" time="0.004" classname="03NegativePostTelemetryMissingRequiredDeviceIdReturnsValidationError"/>
+    <testcase name="Error response follows Problem shape" time="0.004" classname="03NegativePostTelemetryMissingRequiredDeviceIdReturnsValidationError"/>
+  </testsuite>
+  <testsuite name="03_Negative / POST /telemetry - wrong metricType returns validation error" id="44921b6b-ab39-4f5a-98bf-8a9aa3802582" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.005">
+    <testcase name="Wrong metricType returns client error" time="0.005" classname="03NegativePostTelemetryWrongMetricTypeReturnsValidationError"/>
+    <testcase name="Error response has detail" time="0.005" classname="03NegativePostTelemetryWrongMetricTypeReturnsValidationError"/>
+  </testsuite>
+  <testsuite name="03_Negative / POST /telemetry - wrong value type returns validation error" id="b643e40a-787f-47b6-a393-3783eeced2ba" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="Wrong value type returns client error" time="0.003" classname="03NegativePostTelemetryWrongValueTypeReturnsValidationError"/>
+    <testcase name="Type validation error follows Problem shape" time="0.003" classname="03NegativePostTelemetryWrongValueTypeReturnsValidationError"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / POST /telemetry - batteryLevel at max 100 is accepted" id="1361d989-b991-43f8-bdf4-b2a3d55b2c31" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Boundary batteryLevel=100 returns 202" time="0.004" classname="04BoundaryReliabilityPostTelemetryBatteryLevelAtMax100IsAccepted"/>
+    <testcase name="Response confirms accepted" time="0.004" classname="04BoundaryReliabilityPostTelemetryBatteryLevelAtMax100IsAccepted"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / POST /telemetry - omitted batteryLevel is accepted" id="0a0868c7-c236-463b-859d-0325b7b6deda" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Omitted batteryLevel returns 202" time="0.004" classname="04BoundaryReliabilityPostTelemetryOmittedBatteryLevelIsAccepted"/>
+    <testcase name="Omitted batteryLevel accepted with eventId" time="0.004" classname="04BoundaryReliabilityPostTelemetryOmittedBatteryLevelIsAccepted"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / POST /telemetry - rate limit returns 429" id="157b8132-7bc3-4f7a-a240-ee43f1ccd023" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="Rate limit response returns 429" time="0.003" classname="04BoundaryReliabilityPostTelemetryRateLimitReturns429"/>
+    <testcase name="Rate limit response follows Problem shape" time="0.003" classname="04BoundaryReliabilityPostTelemetryRateLimitReturns429"/>
+  </testsuite>
+  <testsuite name="04_Boundary_Reliability / POST /devices/{deviceId}/status - device not found returns 404" id="68bbaa90-df6f-4554-bf69-fef50399fb27" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.003">
+    <testcase name="Non-existent device returns 404" time="0.003" classname="04BoundaryReliabilityPostDevicesDeviceIdStatusDeviceNotFoundReturns404"/>
+    <testcase name="404 response follows Problem shape" time="0.003" classname="04BoundaryReliabilityPostDevicesDeviceIdStatusDeviceNotFoundReturns404"/>
+  </testsuite>
+  <testsuite name="05_Consumer_side_Smoke / Consumer smoke - IoT calls Core Business POST /events" id="33ccb0d5-74f9-400f-9955-8e318a011ce4" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.007">
+    <testcase name="Core Business accepts IoT event" time="0.007" classname="05ConsumerSideSmokeConsumerSmokeIoTCallsCoreBusinessPostEvents"/>
+    <testcase name="Consumer can read event acceptance fields" time="0.007" classname="05ConsumerSideSmokeConsumerSmokeIoTCallsCoreBusinessPostEvents"/>
+  </testsuite>
+  <testsuite name="05_Consumer_side_Smoke / Consumer smoke - IoT calls Core Business GET /alerts/recent" id="8bfd81b4-d8e7-4c65-9356-4bce26bd3597" timestamp="2026-06-01T11:27:32.980Z" tests="2" failures="0" errors="0" time="0.004">
+    <testcase name="Core Business returns recent alerts" time="0.004" classname="05ConsumerSideSmokeConsumerSmokeIoTCallsCoreBusinessGetAlertsRecent"/>
+    <testcase name="Response has items array" time="0.004" classname="05ConsumerSideSmokeConsumerSmokeIoTCallsCoreBusinessGetAlertsRecent"/>
+  </testsuite>
+  <testsuite name="06_Local_only_NonFunctional / POST /telemetry - local response time threshold" id="3f1a130f-245f-4e37-acc0-1a7621a1e5c6" timestamp="2026-06-01T11:27:32.980Z" tests="1" failures="0" errors="0" time="0.004">
+    <testcase name="Skipped on mock: mock latency is not evidence of real service reliability" time="0.004" classname="06LocalOnlyNonFunctionalPostTelemetryLocalResponseTimeThreshold"/>
+  </testsuite>
+</testsuites>
