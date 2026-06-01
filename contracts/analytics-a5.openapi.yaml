@@ -90,7 +90,7 @@ paths:
                     relatedEventId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
                     status: OPEN
                     createdAt: '2026-05-10T08:00:00Z'
-                    resolvedAt: null
+                    resolvedAt: '2026-05-11T08:00:00Z'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -127,8 +127,8 @@ paths:
                         relatedEventId: 0196fb3d-4ad7-7d1e-9f49-5d5148d2babc
                         status: OPEN
                         createdAt: '2026-05-10T08:00:00Z'
-                        resolvedAt: null
-                    nextCursor: null
+                        resolvedAt: '2026-05-11T08:00:00Z'
+                    nextCursor: 'next-page-cursor'
                     hasMore: false
         '401':
           $ref: '#/components/responses/Unauthorized'
